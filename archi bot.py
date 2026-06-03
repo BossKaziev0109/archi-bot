@@ -2,15 +2,14 @@ import os
 import threading
 import logging
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import google.generativeai as genai
+from google import genai
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = "8830076996:AAFDcsnWVefMuOOdThnGaroRKvt4tBZXEtU"
-GEMINI_API_KEY = "AIzaSyAb8RN6I1EtOtm2AJZ3TxqN3d7Pb9zObMPq4HwrH5OOxlokoo4g"
+GEMINI_API_KEY = "AQ.Ab8RN6KeKUv9dRhQs89tlncNC7OCUSgyFUhcxjtpLOIHP7SydA"
 
-genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -39,8 +38,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     try:
-        prompt = f"Ты помощник Арчи. Отвечай на: {user_message}"
-        response = model.generate_content(prompt)
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=user_message
+        )
         await update.message.reply_text(response.text)
     except Exception as e:
         logger.error(f"Error: {e}")
