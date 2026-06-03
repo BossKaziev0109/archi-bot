@@ -7,7 +7,7 @@ from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = "8830076996:AAGqRtRaNmsTvU-kKZQZZpPslOP6Jk153Ms"
-GEMINI_API_KEY = "AIzaSyAb8RN6I1EtOtm2AJZ3TxqN3"
+GEMINI_API_KEY = "AIzaSyAb8RN6I1EtOtm2AJZ3TxqN3d7Pb9zObMPq4HwrH5OOxlokoo4g"
 
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-1.5-flash')
