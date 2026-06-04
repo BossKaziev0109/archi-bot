@@ -1,4 +1,5 @@
 import os
+import time
 import threading
 import logging
 import requests
@@ -75,8 +76,8 @@ SEARCH_KEYWORDS = [
     "weather", "news", "price", "today", "current", "latest", "bitcoin"
 ]
 
-GIF_KEYWORDS = ["gif", "гиф", "😂", "анимация", "мем", "смешно", "funny", "lol"]
-STICKER_KEYWORDS = ["стикер", "sticker", "🎭", "стикеры"]
+GIF_KEYWORDS = ["gif", "гиф", "😂 gif", "анимация", "мем", "funny", "lol"]
+STICKER_KEYWORDS = ["стикер", "sticker", "🎭 стикер", "стикеры"]
 
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -88,9 +89,13 @@ class HealthHandler(BaseHTTPRequestHandler):
 
 def run_health_server():
     port = int(os.environ.get("PORT", 8080))
-    HTTPServer(("0.0.0.0", port), HealthHandler).serve_forever()
+    server = HTTPServer(("0.0.0.0", port), HealthHandler)
+    logger.info(f"Health server running on port {port}")
+    server.serve_forever()
 
-threading.Thread(target=run_health_server, daemon=True).start()
+health_thread = threading.Thread(target=run_health_server, daemon=True)
+health_thread.start()
+time.sleep(2)
 
 def needs_search(text):
     text_lower = text.lower()
@@ -106,14 +111,9 @@ def needs_sticker(text):
 
 def get_gif(query="funny"):
     try:
-        url = f"https://api.giphy.com/v1/gifs/search"
-        params = {
-            "api_key": GIPHY_API_KEY,
-            "q": query,
-            "limit": 10,
-            "rating": "g"
-        }
-        response = requests.get(url, params=params)
+        url = "https://api.giphy.com/v1/gifs/search"
+        params = {"api_key": GIPHY_API_KEY, "q": query, "limit": 10, "rating": "g"}
+        response = requests.get(url, params=params, timeout=5)
         data = response.json()
         if data["data"]:
             gif = random.choice(data["data"])
@@ -124,14 +124,9 @@ def get_gif(query="funny"):
 
 def get_sticker(query="funny"):
     try:
-        url = f"https://api.giphy.com/v1/stickers/search"
-        params = {
-            "api_key": GIPHY_API_KEY,
-            "q": query,
-            "limit": 10,
-            "rating": "g"
-        }
-        response = requests.get(url, params=params)
+        url = "https://api.giphy.com/v1/stickers/search"
+        params = {"api_key": GIPHY_API_KEY, "q": query, "limit": 10, "rating": "g"}
+        response = requests.get(url, params=params, timeout=5)
         data = response.json()
         if data["data"]:
             sticker = random.choice(data["data"])
@@ -165,9 +160,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
-    # GIF запрос
     if needs_gif(user_message):
-        query = user_message.replace("gif", "").replace("гиф", "").replace("😂", "").strip()
+        query = user_message.lower()
+        for kw in GIF_KEYWORDS:
+            query = query.replace(kw, "").strip()
         if not query:
             query = "funny"
         gif_url = get_gif(query)
@@ -177,9 +173,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Не нашёл GIF 😅", reply_markup=MENU)
         return
 
-    # Стикер запрос
     if needs_sticker(user_message):
-        query = user_message.replace("стикер", "").replace("sticker", "").replace("🎭", "").strip()
+        query = user_message.lower()
+        for kw in STICKER_KEYWORDS:
+            query = query.replace(kw, "").strip()
         if not query:
             query = "funny"
         sticker_url = get_sticker(query)
@@ -189,7 +186,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Не нашёл стикер 😅", reply_markup=MENU)
         return
 
-    # Поиск в интернете
     search_context = ""
     if needs_search(user_message):
         try:
