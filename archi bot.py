@@ -1,6 +1,8 @@
 import os
 import threading
 import logging
+import requests
+import random
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from groq import Groq
 from tavily import TavilyClient
@@ -10,6 +12,7 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GROQ_API_KEY = "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"
 TAVILY_API_KEY = "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"
+GIPHY_API_KEY = "bgBclv03iaKOuxqNRfH8OqIsLXK6eHs4"
 
 groq_client = Groq(api_key=GROQ_API_KEY)
 tavily_client = TavilyClient(api_key=TAVILY_API_KEY)
@@ -49,6 +52,7 @@ MENU = ReplyKeyboardMarkup(
         [KeyboardButton("🚗 Пробки"), KeyboardButton("🍽 Рестораны")],
         [KeyboardButton("📰 Новости"), KeyboardButton("📱 Техника")],
         [KeyboardButton("⚽ Спорт"), KeyboardButton("🎬 Кино")],
+        [KeyboardButton("😂 GIF"), KeyboardButton("🎭 Стикер")],
     ],
     resize_keyboard=True
 )
@@ -71,6 +75,9 @@ SEARCH_KEYWORDS = [
     "weather", "news", "price", "today", "current", "latest", "bitcoin"
 ]
 
+GIF_KEYWORDS = ["gif", "гиф", "😂", "анимация", "мем", "смешно", "funny", "lol"]
+STICKER_KEYWORDS = ["стикер", "sticker", "🎭", "стикеры"]
+
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -89,6 +96,50 @@ def needs_search(text):
     text_lower = text.lower()
     return any(keyword in text_lower for keyword in SEARCH_KEYWORDS)
 
+def needs_gif(text):
+    text_lower = text.lower()
+    return any(keyword in text_lower for keyword in GIF_KEYWORDS)
+
+def needs_sticker(text):
+    text_lower = text.lower()
+    return any(keyword in text_lower for keyword in STICKER_KEYWORDS)
+
+def get_gif(query="funny"):
+    try:
+        url = f"https://api.giphy.com/v1/gifs/search"
+        params = {
+            "api_key": GIPHY_API_KEY,
+            "q": query,
+            "limit": 10,
+            "rating": "g"
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+        if data["data"]:
+            gif = random.choice(data["data"])
+            return gif["images"]["original"]["url"]
+    except Exception as e:
+        logger.error(f"GIF error: {e}")
+    return None
+
+def get_sticker(query="funny"):
+    try:
+        url = f"https://api.giphy.com/v1/stickers/search"
+        params = {
+            "api_key": GIPHY_API_KEY,
+            "q": query,
+            "limit": 10,
+            "rating": "g"
+        }
+        response = requests.get(url, params=params)
+        data = response.json()
+        if data["data"]:
+            sticker = random.choice(data["data"])
+            return sticker["images"]["original"]["url"]
+    except Exception as e:
+        logger.error(f"Sticker error: {e}")
+    return None
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     user_histories[user.id] = []
@@ -100,8 +151,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🚗 Пробки  🍽 Рестораны\n"
         f"📰 Новости  📱 Техника\n"
         f"⚽ Спорт  🎬 Кино\n"
-        f"🏥 Медицина  ⚖️ Юридические\n"
-        f"🍳 Рецепты  ✈ Путешествия\n\n"
+        f"😂 GIF  🎭 Стикеры\n\n"
         f"Спрашивай что угодно!",
         reply_markup=MENU
     )
@@ -115,6 +165,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
 
+    # GIF запрос
+    if needs_gif(user_message):
+        query = user_message.replace("gif", "").replace("гиф", "").replace("😂", "").strip()
+        if not query:
+            query = "funny"
+        gif_url = get_gif(query)
+        if gif_url:
+            await update.message.reply_animation(animation=gif_url, reply_markup=MENU)
+        else:
+            await update.message.reply_text("Не нашёл GIF 😅", reply_markup=MENU)
+        return
+
+    # Стикер запрос
+    if needs_sticker(user_message):
+        query = user_message.replace("стикер", "").replace("sticker", "").replace("🎭", "").strip()
+        if not query:
+            query = "funny"
+        sticker_url = get_sticker(query)
+        if sticker_url:
+            await update.message.reply_animation(animation=sticker_url, reply_markup=MENU)
+        else:
+            await update.message.reply_text("Не нашёл стикер 😅", reply_markup=MENU)
+        return
+
+    # Поиск в интернете
     search_context = ""
     if needs_search(user_message):
         try:
