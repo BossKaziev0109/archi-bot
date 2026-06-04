@@ -6,7 +6,7 @@ from google import genai
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
-TELEGRAM_TOKEN = "8830076996:AAFDcsnWVefMuOOdThnGaroRKvt4tBZXEtU"
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 GEMINI_API_KEY = "AQ.Ab8RN6KeKUv9dRhQs89tlncNC7OCUSgyFUhcxjtpLOIHP7SydA"
 
 client = genai.Client(api_key=GEMINI_API_KEY)
