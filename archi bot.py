@@ -2,14 +2,14 @@ import os
 import threading
 import logging
 from http.server import HTTPServer, BaseHTTPRequestHandler
-from google import genai
+from groq import Groq
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
-GEMINI_API_KEY = "AQ.Ab8RN6KeKUv9dRhQs89tlncNC7OCUSgyFUhcxjtpLOIHP7SydA"
+GROQ_API_KEY = "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"
 
-client = genai.Client(api_key=GEMINI_API_KEY)
+client = Groq(api_key=GROQ_API_KEY)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -38,11 +38,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     await context.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
     try:
-        response = client.models.generate_content(
-            model="gemini-2.0-flash-lite",
-            contents=user_message
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[{"role": "user", "content": user_message}]
         )
-        await update.message.reply_text(response.text)
+        await update.message.reply_text(response.choices[0].message.content)
     except Exception as e:
         logger.error(f"Error: {e}")
         await update.message.reply_text(f"Ошибка: {e}")
